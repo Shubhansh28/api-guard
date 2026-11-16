@@ -1,0 +1,53 @@
+{
+  "name": "api-guard-js",
+  "version": "0.1.0",
+  "description": "Lightweight, modular Express middleware for rate limiting, IP blocking, request validation, and consistent API errors.",
+  "type": "commonjs",
+  "main": "./src/index.js",
+  "module": "./src/index.mjs",
+  "exports": {
+    ".": {
+      "require": "./src/index.js",
+      "import": "./src/index.mjs"
+    }
+  },
+  "files": [
+    "src",
+    "examples",
+    "README.md",
+    "CONTRIBUTING.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint .",
+    "pack:check": "npm pack --dry-run"
+  },
+  "engines": {
+    "node": ">=18.18.0"
+  },
+  "keywords": [
+    "express",
+    "security",
+    "rate-limit",
+    "validation",
+    "middleware"
+  ],
+  "license": "MIT",
+  "peerDependencies": {
+    "express": ">=4.18.0 <6"
+  },
+  "dependencies": {
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.17.0",
+    "@vitest/coverage-v8": "^2.1.8",
+    "eslint": "^9.17.0",
+    "express": "^5.0.1",
+    "supertest": "^7.0.0",
+    "vitest": "^2.1.8"
+  }
+}
