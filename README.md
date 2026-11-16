@@ -1,4 +1,4 @@
-# api-guard-js
+# @shubhansh28/api-guard-js
 
 Lightweight, modular Express middleware for common API protections: fixed-window rate limiting, exact IP blocking, Zod request validation, and consistent JSON errors.
 
@@ -7,7 +7,7 @@ Lightweight, modular Express middleware for common API protections: fixed-window
 ## Installation
 
 ```sh
-npm install api-guard-js express
+npm install @shubhansh28/api-guard-js express
 ```
 
 `zod` is a runtime dependency and is installed automatically. Express is a peer dependency, so your application controls its Express 4 or Express 5 version.
@@ -18,7 +18,7 @@ npm install api-guard-js express
 
 ```js
 const express = require('express');
-const { rateLimit, ipBlocker, errorHandler } = require('api-guard-js');
+const { rateLimit, ipBlocker, errorHandler } = require('@shubhansh28/api-guard-js');
 
 const app = express();
 app.use(express.json());
@@ -32,7 +32,7 @@ app.use(errorHandler());
 
 ```js
 import express from 'express';
-import { rateLimit, errorHandler } from 'api-guard-js';
+import { rateLimit, errorHandler } from '@shubhansh28/api-guard-js';
 ```
 
 ## Rate limiting
@@ -71,7 +71,7 @@ app.use(ipBlocker({
 
 ```js
 const { z } = require('zod');
-const { validateRequest } = require('api-guard-js');
+const { validateRequest } = require('@shubhansh28/api-guard-js');
 
 app.post('/users', validateRequest({
   body: z.object({ name: z.string().min(2), email: z.string().email() }),

@@ -1,5 +1,5 @@
 {
-  "name": "api-guard-js",
+  "name": "@shubhansh28/api-guard-js",
   "version": "0.1.0",
   "description": "Lightweight, modular Express middleware for rate limiting, IP blocking, request validation, and consistent API errors.",
   "type": "commonjs",
