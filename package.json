@@ -21,6 +21,8 @@
   ],
   "scripts": {
     "test": "vitest run",
+    "test:integration": "vitest run tests/integration.test.js",
+    "test:unit": "vitest run --exclude tests/integration.test.js",
     "test:coverage": "vitest run --coverage",
     "lint": "eslint .",
     "pack:check": "npm pack --dry-run"
@@ -47,6 +49,7 @@
     "@vitest/coverage-v8": "^2.1.8",
     "eslint": "^9.17.0",
     "express": "^5.0.1",
+    "express4": "npm:express@^4.21.2",
     "supertest": "^7.0.0",
     "vitest": "^2.1.8"
   }

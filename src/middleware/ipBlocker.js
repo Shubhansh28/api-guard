@@ -16,6 +16,7 @@ function normalizeList(value, name) {
 
 /**
  * Block exact IP addresses. Allowlisted addresses always take precedence.
+ * `ipResolver` must be synchronous and return an IPv4 or IPv6 string.
  * @param {object} [options]
  * @returns {import('express').RequestHandler}
  */
@@ -39,12 +40,20 @@ function ipBlocker(options = {}) {
   const statusCode = options.statusCode || 403;
 
   return (req, res, next) => {
-    const ip = normalizeIp(resolver(req));
-    if (!ip) return next(new TypeError('ipBlocker IP resolver must return a valid IP address'));
-    if (!allowedIPs.has(ip) && blockedIPs.has(ip)) {
-      return next(new ApiGuardError(ERROR_CODES.IP_BLOCKED, message, statusCode, { ip }));
+    try {
+      const resolved = resolver(req);
+      if (resolved && typeof resolved.then === 'function') {
+        return next(new TypeError('ipBlocker ipResolver must be synchronous'));
+      }
+      const ip = normalizeIp(resolved);
+      if (!ip) return next(new TypeError('ipBlocker IP resolver must return a valid IP address'));
+      if (!allowedIPs.has(ip) && blockedIPs.has(ip)) {
+        return next(new ApiGuardError(ERROR_CODES.IP_BLOCKED, message, statusCode, { ip }));
+      }
+      return next();
+    } catch (error) {
+      return next(error);
     }
-    return next();
   };
 }
 

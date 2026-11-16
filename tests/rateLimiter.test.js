@@ -25,7 +25,7 @@ describe('rateLimit', () => {
   });
 
   it('supports skip, custom keys, and custom stores', async () => {
-    const increment = vi.fn(() => ({ totalHits: 1, resetTime: new Date(Date.now() + 1000) }));
+    const increment = vi.fn(async () => ({ totalHits: 1, resetTime: new Date(Date.now() + 1000) }));
     const result = await run(rateLimit({
       windowMs: 1000, maxRequests: 1, keyGenerator: () => 'client',
       skip: () => false, store: { increment }
@@ -33,6 +33,35 @@ describe('rateLimit', () => {
     expect(result.error).toBeUndefined();
     expect(increment).toHaveBeenCalledWith('client', 1000);
     expect((await run(rateLimit({ windowMs: 1000, maxRequests: 1, skip: () => true }))).error).toBeUndefined();
+  });
+
+  it('passes key generator and store failures to next once', async () => {
+    const keyError = new Error('key failed');
+    const storeError = new Error('store failed');
+    expect((await run(rateLimit({ windowMs: 1000, maxRequests: 1, keyGenerator: () => { throw keyError; } }))).error)
+      .toBe(keyError);
+    expect((await run(rateLimit({ windowMs: 1000, maxRequests: 1, store: { increment: async () => { throw storeError; } } }))).error)
+      .toBe(storeError);
+  });
+
+  it('rejects invalid custom store results', async () => {
+    for (const result of [
+      { totalHits: 0, resetTime: new Date(Date.now() + 1000) },
+      { totalHits: 1.5, resetTime: new Date(Date.now() + 1000) },
+      { totalHits: 1, resetTime: new Date('invalid') }
+    ]) {
+      const outcome = await run(rateLimit({ windowMs: 1000, maxRequests: 1, store: { increment: () => result } }));
+      expect(outcome.error).toBeInstanceOf(TypeError);
+    }
+  });
+
+  it('calls skip exactly once and does not call the key generator', async () => {
+    const skip = vi.fn(() => true);
+    const keyGenerator = vi.fn();
+    const outcome = await run(rateLimit({ windowMs: 1000, maxRequests: 1, skip, keyGenerator }));
+    expect(outcome.error).toBeUndefined();
+    expect(skip).toHaveBeenCalledTimes(1);
+    expect(keyGenerator).not.toHaveBeenCalled();
   });
 
   it('expires memory entries and rejects invalid options', () => {
@@ -44,5 +73,18 @@ describe('rateLimit', () => {
     vi.useRealTimers();
     expect(() => rateLimit({ windowMs: 0, maxRequests: 1 })).toThrow();
     expect(() => rateLimit({ windowMs: 1, maxRequests: 0 })).toThrow();
+  });
+
+  it('bounds expired-entry cleanup during increments', () => {
+    vi.useFakeTimers();
+    const store = new MemoryStore({ cleanupInterval: 1, maxCleanupKeys: 2 });
+    for (let index = 0; index < 5; index += 1) {
+      store.increment(`client-${index}`, 10);
+    }
+    vi.advanceTimersByTime(11);
+    store.increment('fresh-client', 100);
+    expect(store.entries.size).toBeLessThan(5);
+    store.clear();
+    vi.useRealTimers();
   });
 });

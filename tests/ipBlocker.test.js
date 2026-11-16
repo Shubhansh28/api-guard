@@ -27,4 +27,12 @@ describe('ipBlocker', () => {
     expect(() => ipBlocker({ blockedIPs: ['not-an-ip'] })).toThrow();
     expect(() => ipBlocker({ blockedIPs: '127.0.0.1' })).toThrow();
   });
+
+  it('passes resolver errors and rejects asynchronous resolvers', async () => {
+    const resolverError = new Error('resolver failed');
+    expect(await run(ipBlocker({ ipResolver: () => { throw resolverError; } }))).toBe(resolverError);
+    const asyncError = await run(ipBlocker({ ipResolver: async () => '127.0.0.1' }));
+    expect(asyncError).toBeInstanceOf(TypeError);
+    expect(asyncError.message).toMatch(/synchronous/);
+  });
 });

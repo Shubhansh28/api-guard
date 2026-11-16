@@ -51,7 +51,7 @@ import { rateLimit, errorHandler } from 'api-guard-js';
 | `legacyHeaders` | boolean | `false` | Sends `X-RateLimit-*` headers. |
 | `store` | object | `MemoryStore` | Must implement `increment(key, windowMs)`. |
 
-The default `MemoryStore` cleans expired entries as new keys arrive. It is safe for concurrent requests in one Node.js process, but does not share state across processes, containers, or machines. A Redis store can be added later by implementing the same store contract.
+The default `MemoryStore` performs bounded cleanup every 100 increments, inspecting at most 1,000 entries per cleanup. Configure `new MemoryStore({ cleanupInterval, maxCleanupKeys })` when tuning this policy. It uses no background timer, so there is no timer to dispose. It is safe for concurrent requests in one Node.js process, but does not share state across processes, containers, or machines. A Redis store can be added later by implementing the same store contract.
 
 Do not use arbitrary forwarding headers as identity. If your deployment is behind a trusted proxy, configure Express explicitly, for example `app.set('trust proxy', 1)`, and then `req.ip` can reflect that trusted proxy chain. Only configure the number or addresses of proxies you actually control.
 
@@ -65,7 +65,7 @@ app.use(ipBlocker({
 }));
 ```
 
-`allowedIPs` takes precedence over `blockedIPs`. Exact IPv4 and IPv6 values are supported, including IPv4-mapped IPv6 normalization. CIDR ranges are intentionally not accepted in this initial release. The default resolver uses `req.ip` (then the socket address), never `X-Forwarded-For` directly. Use `ipResolver` for a controlled, application-specific resolver.
+`allowedIPs` takes precedence over `blockedIPs`. Exact IPv4 and IPv6 values are supported, including IPv4-mapped IPv6 normalization. CIDR ranges are intentionally not accepted in this initial release. The default resolver uses `req.ip` (then the socket address), never `X-Forwarded-For` directly. Use a synchronous `ipResolver(req)` for a controlled, application-specific resolver; asynchronous resolvers are rejected and resolver exceptions are passed to Express.
 
 ## Request validation
 
@@ -78,8 +78,8 @@ app.post('/users', validateRequest({
   query: z.object({ invite: z.string().optional() }),
   params: z.object({ id: z.string().uuid() })
 }), (req, res) => {
-  // req.body, req.query, and req.params contain parsed Zod output.
-  res.status(201).json({ success: true, user: req.body });
+  // Only supplied schemas appear under req.validated.
+  res.status(201).json({ success: true, user: req.validated.body });
 });
 ```
 
@@ -108,7 +108,7 @@ For application errors, use `new ApiGuardError(code, message, statusCode, detail
 
 ## Compatibility and security
 
-- Supports Express 4.18+ and Express 5.
+- Declares support for Express 4.18+ and Express 5. The repository includes an integration matrix for both versions; run `npm run test:integration` in an environment that permits local TCP listeners before release.
 - Supports Node.js 18.18+.
 - Supports CommonJS and ES module consumers through package exports.
 - Validate configuration at startup; invalid options throw clear `TypeError`s.
@@ -121,12 +121,13 @@ For application errors, use `new ApiGuardError(code, message, statusCode, detail
 ```sh
 npm install
 npm test
+npm run test:integration
 npm run test:coverage
 npm run lint
 npm run pack:check
 ```
 
-Run examples with `node examples/basic.js` or `node examples/validation.js`. Publishing is intentionally manual:
+`npm run test:integration` runs real Supertest HTTP tests against Express 4 and Express 5; it requires an environment that permits local TCP listeners. Run examples with `node examples/basic.js` or `node examples/validation.js`. Publishing is intentionally manual:
 
 ```sh
 npm login

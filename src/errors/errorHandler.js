@@ -11,6 +11,9 @@ function errorHandler(options = {}) {
   if (!options || typeof options !== 'object' || Array.isArray(options)) {
     throw new TypeError('errorHandler options must be an object');
   }
+  if (options.exposeDetails !== undefined && typeof options.exposeDetails !== 'boolean') {
+    throw new TypeError('errorHandler exposeDetails must be a boolean');
+  }
   const exposeDetails = options.exposeDetails === true;
 
   return (error, req, res, next) => {

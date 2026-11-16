@@ -3,7 +3,7 @@ const ERROR_CODES = require('../constants/errorCodes');
 
 /**
  * Validate selected request properties with Zod schemas.
- * Parsed values replace the corresponding Express request property.
+ * Parsed values are exposed under req.validated without mutating Express request properties.
  * @param {{body?: object, query?: object, params?: object}} schemas
  * @returns {import('express').RequestHandler}
  */
@@ -19,7 +19,7 @@ function validateRequest(schemas = {}) {
     }
   }
   return (req, res, next) => {
-    const parsed = {};
+    const validated = {};
     for (const key of ['body', 'query', 'params']) {
       if (!schemas[key]) continue;
       const result = schemas[key].safeParse(req[key]);
@@ -31,9 +31,9 @@ function validateRequest(schemas = {}) {
         }));
         return next(new ApiGuardError(ERROR_CODES.VALIDATION_ERROR, 'Request validation failed', 400, details));
       }
-      parsed[key] = result.data;
+      validated[key] = result.data;
     }
-    for (const [key, value] of Object.entries(parsed)) req[key] = value;
+    req.validated = validated;
     return next();
   };
 }

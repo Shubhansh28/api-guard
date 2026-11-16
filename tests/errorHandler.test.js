@@ -20,4 +20,13 @@ describe('errorHandler', () => {
     expect(unknown.body).toEqual(formatErrorResponse('INTERNAL_ERROR', 'Internal server error'));
     expect(JSON.stringify(unknown.body)).not.toContain('secret');
   });
+
+  it('validates options and delegates when headers were sent', () => {
+    expect(() => errorHandler({ exposeDetails: 'yes' })).toThrow();
+    const nextError = new Error('already sent');
+    const output = {};
+    const res = { headersSent: true };
+    errorHandler()(nextError, {}, res, (error) => { output.error = error; });
+    expect(output.error).toBe(nextError);
+  });
 });

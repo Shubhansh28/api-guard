@@ -47,46 +47,45 @@ function rateLimit(options = {}) {
     store: options.store || new MemoryStore()
   };
 
-  return (req, res, next) => {
-    Promise.resolve()
-      .then(() => config.skip(req))
-      .then((skip) => {
-        if (skip) return next();
-        return Promise.resolve(config.keyGenerator(req)).then((key) => {
-          if (typeof key !== 'string' || key.length === 0) {
-            throw new TypeError('rateLimit keyGenerator must return a non-empty string');
-          }
-          return config.store.increment(key, config.windowMs);
-        });
-      })
-      .then((result) => {
-        if (!result) return;
-        if (!Number.isInteger(result.totalHits) || !(result.resetTime instanceof Date)) {
-          throw new TypeError('rateLimit store.increment must return totalHits and resetTime');
-        }
-        const remaining = Math.max(0, config.maxRequests - result.totalHits);
-        const resetSeconds = Math.max(0, Math.ceil((result.resetTime.getTime() - Date.now()) / 1000));
-        if (config.standardHeaders) {
-          res.setHeader('RateLimit-Limit', config.maxRequests);
-          res.setHeader('RateLimit-Remaining', remaining);
-          res.setHeader('RateLimit-Reset', resetSeconds);
-        }
-        if (config.legacyHeaders) {
-          res.setHeader('X-RateLimit-Limit', config.maxRequests);
-          res.setHeader('X-RateLimit-Remaining', remaining);
-          res.setHeader('X-RateLimit-Reset', Math.ceil(result.resetTime.getTime() / 1000));
-        }
-        if (result.totalHits > config.maxRequests) {
-          res.setHeader('Retry-After', resetSeconds);
-          return next(new ApiGuardError(ERROR_CODES.RATE_LIMIT_EXCEEDED, config.message, config.statusCode, {
-            limit: config.maxRequests,
-            remaining: 0,
-            resetTime: result.resetTime.toISOString()
-          }));
-        }
-        return next();
-      })
-      .catch(next);
+  return async (req, res, next) => {
+    try {
+      if (await config.skip(req)) return next();
+
+      const key = await config.keyGenerator(req);
+      if (typeof key !== 'string' || key.length === 0) {
+        throw new TypeError('rateLimit keyGenerator must return a non-empty string');
+      }
+
+      const result = await config.store.increment(key, config.windowMs);
+      if (!result || !Number.isInteger(result.totalHits) || result.totalHits < 1
+        || !(result.resetTime instanceof Date) || Number.isNaN(result.resetTime.getTime())) {
+        throw new TypeError('rateLimit store.increment must return a positive totalHits and valid resetTime');
+      }
+
+      const remaining = Math.max(0, config.maxRequests - result.totalHits);
+      const resetSeconds = Math.max(0, Math.ceil((result.resetTime.getTime() - Date.now()) / 1000));
+      if (config.standardHeaders) {
+        res.setHeader('RateLimit-Limit', config.maxRequests);
+        res.setHeader('RateLimit-Remaining', remaining);
+        res.setHeader('RateLimit-Reset', resetSeconds);
+      }
+      if (config.legacyHeaders) {
+        res.setHeader('X-RateLimit-Limit', config.maxRequests);
+        res.setHeader('X-RateLimit-Remaining', remaining);
+        res.setHeader('X-RateLimit-Reset', Math.ceil(result.resetTime.getTime() / 1000));
+      }
+      if (result.totalHits > config.maxRequests) {
+        res.setHeader('Retry-After', resetSeconds);
+        return next(new ApiGuardError(ERROR_CODES.RATE_LIMIT_EXCEEDED, config.message, config.statusCode, {
+          limit: config.maxRequests,
+          remaining: 0,
+          resetTime: result.resetTime.toISOString()
+        }));
+      }
+      return next();
+    } catch (error) {
+      return next(error);
+    }
   };
 }
 
