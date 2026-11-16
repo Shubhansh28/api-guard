@@ -15,6 +15,7 @@ class MemoryStore {
     this.cleanupInterval = options.cleanupInterval || 100;
     this.maxCleanupKeys = options.maxCleanupKeys || 1000;
     this.operations = 0;
+    this.cleanupIterator = null;
   }
 
   /**
@@ -46,14 +47,22 @@ class MemoryStore {
 
   clear() {
     this.entries.clear();
+    this.cleanupIterator = null;
   }
 
   cleanup(now = Date.now(), maxEntries = this.maxCleanupKeys) {
+    if (!this.cleanupIterator) this.cleanupIterator = this.entries.keys();
     let inspected = 0;
-    for (const [key, entry] of this.entries) {
-      if (inspected >= maxEntries) break;
+    while (inspected < maxEntries) {
+      const next = this.cleanupIterator.next();
+      if (next.done) {
+        this.cleanupIterator = null;
+        break;
+      }
+      const key = next.value;
+      const entry = this.entries.get(key);
       inspected += 1;
-      if (entry.resetAt <= now) this.entries.delete(key);
+      if (entry && entry.resetAt <= now) this.entries.delete(key);
     }
   }
 }

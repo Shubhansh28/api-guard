@@ -83,7 +83,7 @@ app.post('/users', validateRequest({
 });
 ```
 
-Only provided schemas are checked. Successful parsed values replace the corresponding request properties. A failure returns `400` with field paths and Zod messages.
+Only provided schemas are checked. Successfully parsed values are available under `req.validated.body`, `req.validated.query`, and `req.validated.params` for the schemas supplied. The original Express request properties are not replaced. A failure returns `400` with field paths and Zod messages.
 
 ## Error responses
 

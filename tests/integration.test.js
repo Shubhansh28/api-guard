@@ -8,7 +8,10 @@ function createApp(express) {
   const app = express();
   app.use(express.json());
   app.use(rateLimit({ windowMs: 60_000, maxRequests: 1 }));
-  app.use(ipBlocker({ blockedIPs: ['198.51.100.10'], allowedIPs: ['127.0.0.1'] }));
+  app.use(ipBlocker({
+    blockedIPs: ['198.51.100.10'],
+    ipResolver: () => '203.0.113.10'
+  }));
   app.post('/users/:id', validateRequest({
     body: z.object({ name: z.string().min(2) }),
     query: z.object({ active: z.coerce.boolean() }),
@@ -45,17 +48,32 @@ describe.each([
 
   it('returns blocked and allowlisted IP responses', async () => {
     const blockedApp = express();
-    blockedApp.use(ipBlocker({ blockedIPs: ['127.0.0.1'] }));
+    blockedApp.use(ipBlocker({
+      blockedIPs: ['198.51.100.10'],
+      ipResolver: () => '198.51.100.10'
+    }));
     blockedApp.use(errorHandler());
     const blocked = await request(blockedApp).get('/');
     expect(blocked.status).toBe(403);
     expect(blocked.body.error.code).toBe('IP_BLOCKED');
 
     const allowedApp = express();
-    allowedApp.use(ipBlocker({ blockedIPs: ['127.0.0.1'], allowedIPs: ['127.0.0.1'] }));
+    allowedApp.use(ipBlocker({
+      blockedIPs: ['198.51.100.10'],
+      allowedIPs: ['198.51.100.10'],
+      ipResolver: () => '198.51.100.10'
+    }));
     allowedApp.get('/', (req, res) => res.json({ ok: true }));
     allowedApp.use(errorHandler());
     expect((await request(allowedApp).get('/')).status).toBe(200);
+  });
+
+  it('keeps a separate default resolver path', async () => {
+    const app = express();
+    app.use(ipBlocker());
+    app.get('/', (req, res) => res.json({ ok: true }));
+    app.use(errorHandler());
+    expect((await request(app).get('/')).status).toBe(200);
   });
 
   it('returns 429 and Retry-After after the limit', async () => {

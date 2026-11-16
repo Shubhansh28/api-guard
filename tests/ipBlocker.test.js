@@ -1,4 +1,5 @@
 const { ipBlocker } = require('../src');
+const { normalizeIp } = require('../src/utils/ipUtils');
 
 function run(middleware, req = { ip: '127.0.0.1' }) {
   return new Promise((resolve) => middleware(req, {}, (error) => resolve(error)));
@@ -34,5 +35,12 @@ describe('ipBlocker', () => {
     const asyncError = await run(ipBlocker({ ipResolver: async () => '127.0.0.1' }));
     expect(asyncError).toBeInstanceOf(TypeError);
     expect(asyncError.message).toMatch(/synchronous/);
+  });
+
+  it('normalizes equivalent IPv4-mapped IPv6 representations', () => {
+    expect(normalizeIp('::ffff:192.0.2.1')).toBe('192.0.2.1');
+    expect(normalizeIp('::ffff:c000:0201')).toBe('192.0.2.1');
+    expect(normalizeIp('0:0:0:0:0:ffff:c000:0201')).toBe('192.0.2.1');
+    expect(normalizeIp('192.0.2.1')).toBe('192.0.2.1');
   });
 });

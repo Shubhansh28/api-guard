@@ -87,4 +87,18 @@ describe('rateLimit', () => {
     store.clear();
     vi.useRealTimers();
   });
+
+  it('eventually inspects expired entries beyond the first cleanup batch', () => {
+    vi.useFakeTimers();
+    const store = new MemoryStore({ cleanupInterval: 100, maxCleanupKeys: 2 });
+    for (let index = 0; index < 5; index += 1) store.increment(`client-${index}`, 10);
+    vi.advanceTimersByTime(11);
+
+    store.cleanup();
+    expect(store.entries.has('client-4')).toBe(true);
+    store.cleanup();
+    store.cleanup();
+    expect(store.entries.size).toBe(0);
+    vi.useRealTimers();
+  });
 });
